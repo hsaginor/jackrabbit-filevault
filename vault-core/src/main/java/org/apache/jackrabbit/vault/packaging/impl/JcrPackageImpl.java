@@ -124,9 +124,6 @@ public class JcrPackageImpl implements JcrPackage {
      */
     @Nullable
     private JcrPackageDefinitionImpl def;
-    
-    @Nullable
-    private TempFileReference fileRef;
 
     public JcrPackageImpl(@Nonnull JcrPackageRegistry mgr, @Nullable Node node) throws RepositoryException {
         this.mgr = mgr;
@@ -329,44 +326,38 @@ public class JcrPackageImpl implements JcrPackage {
             } else {
                 Property data = getData();
                 Binary bin = data.getBinary();
-                File tmpFile = null;
                 
                 try {
-                    tmpFile = getGetTempFileFromBinary(bin);    
+                    TempFileReference fileRef = getTempFileReference(bin);
+                    
+                    if(fileRef == null) {
+                        File tmpFile = getGetTempFileFromBinary(bin);   
+                        pack = new ZipVaultPackage(tmpFile, true);
+                    } else {
+                        pack = new ZipVaultPackage(fileRef);
+                    }
                 } finally {
                     bin.dispose();
                 }
                 
-                pack = new ZipVaultPackage(tmpFile, true);
             }
         }
         return pack;
     }
     
     private File getGetTempFileFromBinary(Binary bin) throws RepositoryException, IOException {
-        File tmpFile = null;
-        
-        fileRef = getTempFileReference(bin);
-        if(fileRef != null) {
-            tmpFile = fileRef.getTempFile("vaultpack", ".zip");
-        }
-        
-        if(tmpFile == null) {
-            tmpFile = File.createTempFile("vaultpack", ".zip");
-            copyToTempFile(bin, tmpFile);
-        } 
-        
+        File tmpFile = File.createTempFile("vaultpack", ".zip");
+        copyToTempFile(bin, tmpFile);
         return tmpFile;
     }
     
     private TempFileReference getTempFileReference(Binary bin) throws RepositoryException {
+        
         if(bin instanceof FileReferencable) {
-            if(fileRef == null) {
-                fileRef = ((FileReferencable)bin).getTempFileReference();
-            }
+            return ((FileReferencable)bin).getTempFileReference();
         }
         
-        return fileRef;
+        return null;
     }
     
     private void copyToTempFile(Binary bin, File tmpFile) throws RepositoryException, IOException {
@@ -1106,9 +1097,6 @@ public class JcrPackageImpl implements JcrPackage {
      */
     public void close() {
         node = null;
-        if(fileRef != null) {
-           fileRef.close(); 
-        }
         if (pack != null) {
             pack.close();
             pack = null;

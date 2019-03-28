@@ -27,11 +27,13 @@ import java.util.regex.PatternSyntaxException;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 
+import org.apache.jackrabbit.oak.api.blob.TempFileReference;
 import org.apache.jackrabbit.vault.fs.config.MetaInf;
 import org.apache.jackrabbit.vault.fs.io.AccessControlHandling;
 import org.apache.jackrabbit.vault.fs.io.Archive;
 import org.apache.jackrabbit.vault.fs.io.ImportOptions;
 import org.apache.jackrabbit.vault.fs.io.Importer;
+import org.apache.jackrabbit.vault.fs.io.TempFileReferenceArchive;
 import org.apache.jackrabbit.vault.fs.io.ZipArchive;
 import org.apache.jackrabbit.vault.packaging.InstallContext;
 import org.apache.jackrabbit.vault.packaging.InstallHookProcessor;
@@ -52,6 +54,10 @@ public class ZipVaultPackage extends PackagePropertiesImpl implements VaultPacka
 
     private Archive archive;
 
+    public ZipVaultPackage(TempFileReference fileRef) throws IOException {
+        this(new TempFileReferenceArchive(fileRef), false);
+    }
+    
     public ZipVaultPackage(File file, boolean isTmpFile) throws IOException {
         this(file, isTmpFile, false);
     }

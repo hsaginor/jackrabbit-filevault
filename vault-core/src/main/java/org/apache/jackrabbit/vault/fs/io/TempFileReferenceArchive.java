@@ -14,8 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-@Version("2.9.0")
 package org.apache.jackrabbit.vault.fs.io;
 
-import org.osgi.annotation.versioning.Version;
+import java.io.IOException;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import org.apache.jackrabbit.oak.api.blob.TempFileReference;
+
+public class TempFileReferenceArchive extends ZipArchive {
+
+    @Nullable
+    private TempFileReference fileRef;
+    
+    public TempFileReferenceArchive(@Nonnull TempFileReference fileRef) throws IOException {
+        this(fileRef, "vaultpack", ".zip");
+    }
+    
+    public TempFileReferenceArchive(@Nonnull TempFileReference fileRef, String prefixHint, String suffixHint) throws IOException {
+        super(fileRef.getTempFile(prefixHint, suffixHint), false);
+        this.fileRef = fileRef;
+    }
+
+    @Override
+    public void close() {
+        if(fileRef != null) {
+            fileRef.close();
+        }
+        super.close();
+    }
+    
+    
+}
