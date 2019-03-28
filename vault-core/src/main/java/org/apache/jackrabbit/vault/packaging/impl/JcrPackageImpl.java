@@ -42,6 +42,9 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.nodetype.NodeTypeManager;
 
+import org.apache.jackrabbit.oak.api.blob.FileReferencable;
+import org.apache.jackrabbit.oak.api.blob.TempFileReference;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.jackrabbit.spi.Name;
@@ -121,6 +124,9 @@ public class JcrPackageImpl implements JcrPackage {
      */
     @Nullable
     private JcrPackageDefinitionImpl def;
+    
+    @Nullable
+    private TempFileReference fileRef;
 
     public JcrPackageImpl(@Nonnull JcrPackageRegistry mgr, @Nullable Node node) throws RepositoryException {
         this.mgr = mgr;
@@ -321,22 +327,59 @@ public class JcrPackageImpl implements JcrPackage {
                 }
                 pack = new ZipVaultPackage(archive, true);
             } else {
-                File tmpFile = File.createTempFile("vaultpack", ".zip");
-                FileOutputStream out = FileUtils.openOutputStream(tmpFile);
-                Binary bin = getData().getBinary();
-                InputStream in = null;
+                Property data = getData();
+                Binary bin = data.getBinary();
+                File tmpFile = null;
+                
                 try {
-                    in = bin.getStream();
-                    IOUtils.copy(in, out);
+                    tmpFile = getGetTempFileFromBinary(bin);    
                 } finally {
-                    IOUtils.closeQuietly(in);
-                    IOUtils.closeQuietly(out);
                     bin.dispose();
                 }
+                
                 pack = new ZipVaultPackage(tmpFile, true);
             }
         }
         return pack;
+    }
+    
+    private File getGetTempFileFromBinary(Binary bin) throws RepositoryException, IOException {
+        File tmpFile = null;
+        
+        fileRef = getTempFileReference(bin);
+        if(fileRef != null) {
+            tmpFile = fileRef.getTempFile("vaultpack", ".zip");
+        }
+        
+        if(tmpFile == null) {
+            tmpFile = File.createTempFile("vaultpack", ".zip");
+            copyToTempFile(bin, tmpFile);
+        } 
+        
+        return tmpFile;
+    }
+    
+    private TempFileReference getTempFileReference(Binary bin) throws RepositoryException {
+        if(bin instanceof FileReferencable) {
+            if(fileRef == null) {
+                fileRef = ((FileReferencable)bin).getTempFileReference();
+            }
+        }
+        
+        return fileRef;
+    }
+    
+    private void copyToTempFile(Binary bin, File tmpFile) throws RepositoryException, IOException {
+        FileOutputStream out = FileUtils.openOutputStream(tmpFile);
+        InputStream in = null;
+        
+        try {
+            in = bin.getStream();
+            IOUtils.copy(in, out);
+        } finally {
+            IOUtils.closeQuietly(in);
+            IOUtils.closeQuietly(out);
+        }
     }
 
     /**
@@ -375,6 +418,7 @@ public class JcrPackageImpl implements JcrPackage {
             throws RepositoryException, PackageException, IOException {
         getPackage();
         getDefinition();
+        
         if (def != null) {
             processed.add(def.getId());
         }
@@ -550,6 +594,7 @@ public class JcrPackageImpl implements JcrPackage {
         } else {
             mgr.dispatch(PackageEvent.Type.EXTRACT, def.getId(), null);
         }
+        
     }
 
     /**
@@ -1061,6 +1106,9 @@ public class JcrPackageImpl implements JcrPackage {
      */
     public void close() {
         node = null;
+        if(fileRef != null) {
+           fileRef.close(); 
+        }
         if (pack != null) {
             pack.close();
             pack = null;
