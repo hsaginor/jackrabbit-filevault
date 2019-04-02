@@ -331,7 +331,7 @@ public class JcrPackageImpl implements JcrPackage {
                     TempFileReference fileRef = getTempFileReference(bin);
                     
                     if(fileRef == null) {
-                        File tmpFile = getGetTempFileFromBinary(bin);   
+                        File tmpFile = getTempFileFromBinary(bin);   
                         pack = new ZipVaultPackage(tmpFile, true);
                     } else {
                         pack = new ZipVaultPackage(fileRef);
@@ -345,7 +345,7 @@ public class JcrPackageImpl implements JcrPackage {
         return pack;
     }
     
-    private File getGetTempFileFromBinary(Binary bin) throws RepositoryException, IOException {
+    private File getTempFileFromBinary(Binary bin) throws RepositoryException, IOException {
         File tmpFile = File.createTempFile("vaultpack", ".zip");
         copyToTempFile(bin, tmpFile);
         return tmpFile;
@@ -407,6 +407,7 @@ public class JcrPackageImpl implements JcrPackage {
      */
     private void extract(Set<PackageId> processed, ImportOptions options, boolean createSnapshot, boolean replaceSnapshot)
             throws RepositoryException, PackageException, IOException {
+        log.info("Extracting {}", new Object[] {this.getNode().getPath()});
         getPackage();
         getDefinition();
         
